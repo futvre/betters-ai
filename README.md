@@ -67,6 +67,6 @@ Football outcomes are uncertain. Any future predictions are probabilistic estima
 The dashboard can generate a cautious, structured match insight when a user clicks **AI insight** on a fixture card. For a free-tier setup, create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey), then configure these server-side environment variables in Vercel (Project → Settings → Environment Variables) and redeploy:
 
 - `GEMINI_API_KEY`: your key from Google AI Studio.
-- `GEMINI_MODEL`: optional model override; defaults to `gemini-2.5-flash-lite`.
+- `GEMINI_MODEL`: optional model override; defaults to `gemini-3.1-flash-lite`.
 
 Keep the key server-side; do not prefix it with `NEXT_PUBLIC_` or commit a real key. Gemini offers a free tier with model-specific usage limits; quotas can change and are not unlimited. See the [official Gemini API pricing page](https://ai.google.dev/gemini-api/docs/pricing). The initial AI version receives fixture metadata only. It does **not** have team form, injury, lineup, standings or odds data, so it must disclose those limitations and can return `NO_PICK`.
