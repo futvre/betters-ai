@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Pre-match insights are unavailable for a completed match." }, { status: 400 });
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  const model = process.env.GEMINI_MODEL || "gemini-3.1-flash-lite";
   const prompt = [
     "You are BetMind AI, a cautious football match-insights assistant.",
     "The only facts provided are the two team names, competition, kickoff time, and fixture status. No recent form, injuries, odds, lineups, standings, or team statistics are provided.",
@@ -115,13 +115,24 @@ export async function POST(request: NextRequest) {
   }
 
   if (!response.ok) {
+    let providerMessage = "";
+    try {
+      const providerError = await response.json() as { error?: { message?: string; status?: string } };
+      providerMessage = providerError.error?.message || providerError.error?.status || "";
+    } catch {
+      // Provider returned a non-JSON error body.
+    }
+    console.error("Gemini API error", { status: response.status, model, message: providerMessage.slice(0, 500) });
     if (response.status === 400 || response.status === 403) {
-      return NextResponse.json({ error: "Gemini rejected the request or API key. Check GEMINI_API_KEY and the selected model in Google AI Studio." }, { status: 502 });
+      return NextResponse.json({ error: "Gemini rejected the request or API key. Check GEMINI_API_KEY and the model in Google AI Studio." }, { status: 502 });
+    }
+    if (response.status === 404) {
+      return NextResponse.json({ error: `Gemini could not find model "${model}" for this API key. In Vercel set GEMINI_MODEL to gemini-3.1-flash-lite and redeploy. If it is already set, verify model access for your Google AI Studio project.` }, { status: 502 });
     }
     if (response.status === 429) {
       return NextResponse.json({ error: "Gemini free-tier rate limit reached. Wait a little and try again; free quotas can vary by model and account." }, { status: 429 });
     }
-    return NextResponse.json({ error: `AI provider request failed (HTTP ${response.status}).` }, { status: 502 });
+    return NextResponse.json({ error: `AI provider request failed (HTTP ${response.status}).${providerMessage ? " " + providerMessage.slice(0, 180) : ""}` }, { status: 502 });
   }
 
   try {
