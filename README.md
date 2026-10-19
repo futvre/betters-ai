@@ -60,3 +60,13 @@ If the key is not configured yet, the site should still build, but the fixtures 
 ## Responsible use
 
 Football outcomes are uncertain. Any future predictions are probabilistic estimates, not guarantees or financial advice. Track all predictions consistently, including losses and voids, and avoid presenting small samples as proof of accuracy.
+
+
+## Optional AI match insights
+
+The dashboard can generate a cautious, structured match insight when a user clicks **AI insight** on a fixture card. Configure these server-side environment variables in Vercel (Project → Settings → Environment Variables) and redeploy:
+
+- `OPENAI_API_KEY`: API key from your OpenAI developer account.
+- `OPENAI_MODEL`: optional model override; defaults to `gpt-4o-mini`.
+
+Keep the key server-side; do not prefix it with `NEXT_PUBLIC_` or commit a real key. The initial AI version receives fixture metadata only. It does **not** have team form, injury, lineup, standings or odds data, so it must disclose those limitations and can return `NO_PICK`. An API key and available API billing/quota are required; a ChatGPT subscription alone does not automatically include API usage.
