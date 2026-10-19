@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ArrowDownUp, CalendarDays, ChevronLeft, ChevronRight, CircleHelp, Clock3, Command, RefreshCw, ShieldCheck, Sparkles, Trophy, Wifi } from "lucide-react";
+import { Activity, ArrowDownUp, CalendarDays, ChevronLeft, ChevronRight, CircleHelp, Clock3, RefreshCw, ShieldCheck, Sparkles, Trophy, Wifi } from "lucide-react";
 import { LEAGUES } from "@/lib/leagues";
 import type { Fixture, FixturesResponse } from "@/types/fixture";
 
@@ -125,7 +125,6 @@ export default function Home() {
     setError("");
     try {
       const params = new URLSearchParams({ date });
-      if (league !== "all") params.set("league", league);
       const response = await fetch(`/api/fixtures?${params.toString()}`, { cache: "no-store" });
       const data = await response.json() as FixturesResponse;
       if (!response.ok) throw new Error(data.error || "Fixtures could not be loaded.");
@@ -137,7 +136,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [date, league]);
+  }, [date]);
 
   useEffect(() => { void loadFixtures(); }, [loadFixtures]);
 
@@ -172,9 +171,12 @@ export default function Home() {
     }
   }, []);
 
-  const liveCount = useMemo(() => fixtures.filter((f) => isLive(f.fixture.status.short)).length, [fixtures]);
-  const finishedCount = useMemo(() => fixtures.filter((f) => isFinished(f.fixture.status.short)).length, [fixtures]);
-  const dateIsToday = date === todayInAthens();
+  const visibleFixtures = useMemo(() => league === "all" ? fixtures : fixtures.filter((fixture) => String(fixture.league.id) === league), [fixtures, league]);
+  const leagueCounts = useMemo(() => {
+    const counts: Record<number, number> = {};
+    for (const fixture of fixtures) counts[fixture.league.id] = (counts[fixture.league.id] || 0) + 1;
+    return counts;
+  }, [fixtures]);
 
   return (
     <main className="app-shell">
@@ -195,11 +197,6 @@ export default function Home() {
       </aside>
 
       <section className="main-panel">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><ChevronRight size={14} /><strong>Match centre</strong></div>
-          <div className="topbar-right"><span className="timezone-pill"><span className="status-led" /> ATHENS · EET/EEST</span><span className="avatar">BM</span></div>
-        </header>
-
         <div className="content">
           <div className="welcome-row">
             <div><div className="eyebrow"><span className="eyebrow-line" /> THE MATCHDAY BRIEFING</div><h1>See the game <span>in data.</span></h1><p className="page-subtitle">Your football dashboard for fixtures, live scores and smarter match insights.</p></div>
@@ -212,23 +209,15 @@ export default function Home() {
             <div className="hero-orb"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb-core"><Activity size={35} /></div><span className="orb-label orb-label-top">MATCH DATA</span><span className="orb-label orb-label-bottom">SIGNAL / NOISE</span></div>
           </section>
 
-          <div className="section-heading"><div><h2>Matchday overview</h2><p>Today&apos;s pulse across your selected competitions.</p></div><button className="refresh-button" onClick={() => void loadFixtures()} disabled={loading}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh data</button></div>
-          <div className="stats-grid">
-            <div className="stat-card"><div className="stat-top"><span className="stat-icon"><CalendarDays size={17} /></span><span className="stat-caption">SCHEDULED DATE</span></div><div className="stat-value stat-date">{dateIsToday ? "Today" : date ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(new Date(`${date}T12:00:00Z`)) : "—"}</div><div className="stat-foot">All times in Athens timezone</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-icon"><Command size={17} /></span><span className="stat-caption">MATCHES FOUND</span></div><div className="stat-value">{loading ? "—" : fixtures.length.toString().padStart(2, "0")}</div><div className="stat-foot">Across selected competitions</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-icon live-icon"><Activity size={17} /></span><span className="stat-caption">LIVE NOW</span></div><div className="stat-value">{loading ? "—" : liveCount.toString().padStart(2, "0")}<span className="stat-live-dot" /></div><div className="stat-foot">In-play matches</div></div>
-            <div className="stat-card"><div className="stat-top"><span className="stat-icon"><Trophy size={17} /></span><span className="stat-caption">COMPLETED</span></div><div className="stat-value">{loading ? "—" : finishedCount.toString().padStart(2, "0")}</div><div className="stat-foot">Full-time / final results</div></div>
-          </div>
+          <div className="matches-heading"><div><div className="heading-title-row"><h2>Fixtures & scores</h2><span className="count-pill">{loading ? "…" : visibleFixtures.length}</span></div><p>Match information sourced from API-Football.</p></div><div className="date-controls"><button className="refresh-button" onClick={() => void loadFixtures()} disabled={loading}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh</button><button aria-label="Previous day" onClick={() => setDate((d) => shiftDate(d, -1))} disabled={!date}><ChevronLeft size={16} /></button><input aria-label="Select fixture date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /><button aria-label="Next day" onClick={() => setDate((d) => shiftDate(d, 1))} disabled={!date}><ChevronRight size={16} /></button><button className="today-button" onClick={() => setDate(todayInAthens())}>Today</button></div></div>
 
-          <div className="matches-heading"><div><div className="heading-title-row"><h2>Fixtures & scores</h2><span className="count-pill">{loading ? "…" : fixtures.length}</span></div><p>Match information sourced from API-Football.</p></div><div className="date-controls"><button aria-label="Previous day" onClick={() => setDate((d) => shiftDate(d, -1))} disabled={!date}><ChevronLeft size={16} /></button><input aria-label="Select fixture date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /><button aria-label="Next day" onClick={() => setDate((d) => shiftDate(d, 1))} disabled={!date}><ChevronRight size={16} /></button><button className="today-button" onClick={() => setDate(todayInAthens())}>Today</button></div></div>
-
-          <div className="league-filters" aria-label="Filter by league"><button className={league === "all" ? "filter-active" : ""} onClick={() => setLeague("all")}><ArrowDownUp size={13} /> All leagues</button>{LEAGUES.map((item) => <button key={item.id} className={league === String(item.id) ? "filter-active" : ""} onClick={() => setLeague(String(item.id))}>{item.shortName}</button>)}</div>
+          <div className="league-filters" aria-label="Filter by league"><button className={league === "all" ? "filter-active" : ""} onClick={() => setLeague("all")}><ArrowDownUp size={13} /> All leagues ({fixtures.length})</button>{LEAGUES.map((item) => <button key={item.id} className={league === String(item.id) ? "filter-active" : ""} onClick={() => setLeague(String(item.id))}>{item.shortName} ({leagueCounts[item.id] || 0})</button>)}</div>
 
           <div className="fixture-list">
             {loading && <div className="state-panel"><div className="loader-ring" /><strong>Loading matchday data</strong><span>Fetching fixtures for your selected competitions…</span></div>}
             {!loading && error && <div className="state-panel error-panel"><CircleHelp size={26} /><strong>We couldn&apos;t load the fixtures</strong><span>{error}</span><button className="retry-button" onClick={() => void loadFixtures()}><RefreshCw size={14} /> Try again</button></div>}
-            {!loading && !error && fixtures.length === 0 && <div className="state-panel"><CalendarDays size={26} /><strong>No fixtures found for this date</strong><span>Try another date or choose a different competition.</span><button className="retry-button" onClick={() => setDate(shiftDate(date, 1))}>Next day <ChevronRight size={14} /></button></div>}
-            {!loading && !error && fixtures.map((fixture) => <FixtureCard
+            {!loading && !error && visibleFixtures.length === 0 && <div className="state-panel"><CalendarDays size={26} /><strong>No fixtures found for this date</strong><span>Try another date or choose a different competition.</span><button className="retry-button" onClick={() => setDate(shiftDate(date, 1))}>Next day <ChevronRight size={14} /></button></div>}
+            {!loading && !error && visibleFixtures.map((fixture) => <FixtureCard
               key={fixture.fixture.id}
               fixture={fixture}
               onAnalyze={analyzeFixture}
