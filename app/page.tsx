@@ -151,6 +151,8 @@ export default function Home() {
         body: JSON.stringify({
           fixture: {
             id,
+            homeId: fixture.teams.home.id,
+            awayId: fixture.teams.away.id,
             date: fixture.fixture.date,
             status: fixture.fixture.status.short,
             league: fixture.league.name,
