@@ -27,7 +27,29 @@ function TeamMark({ name, logo }: { name: string; logo?: string | null }) {
   return <span className="team-fallback">{name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>;
 }
 
-function FixtureCard({ fixture }: { fixture: Fixture }) {
+type MatchInsight = {
+  summary: string;
+  pick: "HOME_WIN" | "DRAW" | "AWAY_WIN" | "NO_PICK";
+  pickLabel: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  risk: 1 | 2 | 3 | 4 | 5;
+  reasoning: string[];
+  limitations: string;
+};
+
+function FixtureCard({
+  fixture,
+  onAnalyze,
+  insight,
+  insightLoading,
+  insightError,
+}: {
+  fixture: Fixture;
+  onAnalyze: (fixture: Fixture) => void;
+  insight?: MatchInsight;
+  insightLoading: boolean;
+  insightError?: string;
+}) {
   const live = isLive(fixture.fixture.status.short);
   const finished = isFinished(fixture.fixture.status.short);
   const status = fixture.fixture.status;
@@ -59,8 +81,27 @@ function FixtureCard({ fixture }: { fixture: Fixture }) {
       </div>
       <div className="fixture-foot">
         <span>{fixture.fixture.venue?.name || fixture.league.round || "Match fixture"}</span>
-        <span className="insight-soon"><Sparkles size={12} /> AI insights · Coming soon</span>
+        <button className="insight-button" onClick={() => onAnalyze(fixture)} disabled={insightLoading}>
+          <Sparkles size={12} className={insightLoading ? "spin" : ""} />
+          {insightLoading ? "Analyzing…" : insight ? "Refresh insight" : "AI insight"}
+        </button>
       </div>
+      {insightError && <div className="insight-error" role="alert">{insightError}</div>}
+      {insight && (
+        <section className="insight-panel" aria-label={`AI insight for ${fixture.teams.home.name} vs ${fixture.teams.away.name}`}>
+          <div className="insight-topline">
+            <span className="insight-label"><Sparkles size={13} /> BETMIND AI ANALYSIS</span>
+            <span className={`confidence confidence-${insight.confidence.toLowerCase()}`}>{insight.confidence} CONFIDENCE</span>
+          </div>
+          <p className="insight-summary">{insight.summary}</p>
+          <div className="insight-metrics">
+            <div><small>PROVISIONAL PICK</small><strong>{insight.pickLabel}</strong></div>
+            <div><small>RISK SCORE</small><strong>{insight.risk}/5</strong></div>
+          </div>
+          {insight.reasoning.length > 0 && <ul className="insight-reasons">{insight.reasoning.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
+          <p className="insight-limitations"><strong>Data limitation:</strong> {insight.limitations}</p>
+        </section>
+      )}
     </article>
   );
 }
@@ -72,6 +113,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [insights, setInsights] = useState<Record<number, MatchInsight>>({});
+  const [insightErrors, setInsightErrors] = useState<Record<number, string>>({});
+  const [insightLoadingId, setInsightLoadingId] = useState<number | null>(null);
 
   useEffect(() => { setDate(todayInAthens()); }, []);
 
@@ -96,6 +140,37 @@ export default function Home() {
   }, [date, league]);
 
   useEffect(() => { void loadFixtures(); }, [loadFixtures]);
+
+  const analyzeFixture = useCallback(async (fixture: Fixture) => {
+    const id = fixture.fixture.id;
+    setInsightLoadingId(id);
+    setInsightErrors((current) => ({ ...current, [id]: "" }));
+    try {
+      const response = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fixture: {
+            id,
+            date: fixture.fixture.date,
+            status: fixture.fixture.status.short,
+            league: fixture.league.name,
+            home: fixture.teams.home.name,
+            away: fixture.teams.away.name,
+            homeGoals: fixture.goals.home,
+            awayGoals: fixture.goals.away,
+          },
+        }),
+      });
+      const data = await response.json() as { insight?: MatchInsight; error?: string };
+      if (!response.ok || !data.insight) throw new Error(data.error || "Could not generate this insight.");
+      setInsights((current) => ({ ...current, [id]: data.insight! }));
+    } catch (err) {
+      setInsightErrors((current) => ({ ...current, [id]: err instanceof Error ? err.message : "Could not generate this insight." }));
+    } finally {
+      setInsightLoadingId(null);
+    }
+  }, []);
 
   const liveCount = useMemo(() => fixtures.filter((f) => isLive(f.fixture.status.short)).length, [fixtures]);
   const finishedCount = useMemo(() => fixtures.filter((f) => isFinished(f.fixture.status.short)).length, [fixtures]);
@@ -153,9 +228,16 @@ export default function Home() {
             {loading && <div className="state-panel"><div className="loader-ring" /><strong>Loading matchday data</strong><span>Fetching fixtures for your selected competitions…</span></div>}
             {!loading && error && <div className="state-panel error-panel"><CircleHelp size={26} /><strong>We couldn&apos;t load the fixtures</strong><span>{error}</span><button className="retry-button" onClick={() => void loadFixtures()}><RefreshCw size={14} /> Try again</button></div>}
             {!loading && !error && fixtures.length === 0 && <div className="state-panel"><CalendarDays size={26} /><strong>No fixtures found for this date</strong><span>Try another date or choose a different competition.</span><button className="retry-button" onClick={() => setDate(shiftDate(date, 1))}>Next day <ChevronRight size={14} /></button></div>}
-            {!loading && !error && fixtures.map((fixture) => <FixtureCard key={fixture.fixture.id} fixture={fixture} />)}
+            {!loading && !error && fixtures.map((fixture) => <FixtureCard
+              key={fixture.fixture.id}
+              fixture={fixture}
+              onAnalyze={analyzeFixture}
+              insight={insights[fixture.fixture.id]}
+              insightLoading={insightLoadingId === fixture.fixture.id}
+              insightError={insightErrors[fixture.fixture.id]}
+            />)}
           </div>
-          <section id="coming-soon" className="roadmap-card"><div className="roadmap-icon"><Sparkles size={18} /></div><div className="roadmap-copy"><strong>AI match insights are on the roadmap</strong><span>Next: evidence-backed summaries, structured confidence labels and an auditable prediction history. No claims of certainty.</span></div><span className="roadmap-badge">PHASE 2</span></section>
+          <section id="coming-soon" className="roadmap-card"><div className="roadmap-icon"><Sparkles size={18} /></div><div className="roadmap-copy"><strong>AI insights · Initial version</strong><span>Generate a structured, cautious insight from each fixture card. Team form, injuries, lineups and odds are not yet connected, so the AI may recommend no pick.</span></div><span className="roadmap-badge">PHASE 2</span></section>
           <footer className="footer"><span>© {new Date().getFullYear()} BetMind AI</span><span><Clock3 size={12} /> All fixture times shown in Europe/Athens</span><span>DATA-DRIVEN. NEVER GUARANTEED.</span></footer>
         </div>
       </section>
