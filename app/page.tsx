@@ -137,7 +137,7 @@ export default function Home() {
             <div className="hero-orb"><div className="orb-ring ring-one" /><div className="orb-ring ring-two" /><div className="orb-core"><Activity size={35} /></div><span className="orb-label orb-label-top">MATCH DATA</span><span className="orb-label orb-label-bottom">SIGNAL / NOISE</span></div>
           </section>
 
-          <div className="section-heading"><div><h2>Matchday overview</h2><p>Today's pulse across your selected competitions.</p></div><button className="refresh-button" onClick={() => void loadFixtures()} disabled={loading}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh data</button></div>
+          <div className="section-heading"><div><h2>Matchday overview</h2><p>Today&apos;s pulse across your selected competitions.</p></div><button className="refresh-button" onClick={() => void loadFixtures()} disabled={loading}><RefreshCw size={14} className={loading ? "spin" : ""} /> Refresh data</button></div>
           <div className="stats-grid">
             <div className="stat-card"><div className="stat-top"><span className="stat-icon"><CalendarDays size={17} /></span><span className="stat-caption">SCHEDULED DATE</span></div><div className="stat-value stat-date">{dateIsToday ? "Today" : date ? new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(new Date(`${date}T12:00:00Z`)) : "—"}</div><div className="stat-foot">All times in Athens timezone</div></div>
             <div className="stat-card"><div className="stat-top"><span className="stat-icon"><Command size={17} /></span><span className="stat-caption">MATCHES FOUND</span></div><div className="stat-value">{loading ? "—" : fixtures.length.toString().padStart(2, "0")}</div><div className="stat-foot">Across selected competitions</div></div>
@@ -151,7 +151,7 @@ export default function Home() {
 
           <div className="fixture-list">
             {loading && <div className="state-panel"><div className="loader-ring" /><strong>Loading matchday data</strong><span>Fetching fixtures for your selected competitions…</span></div>}
-            {!loading && error && <div className="state-panel error-panel"><CircleHelp size={26} /><strong>We couldn't load the fixtures</strong><span>{error}</span><button className="retry-button" onClick={() => void loadFixtures()}><RefreshCw size={14} /> Try again</button></div>}
+            {!loading && error && <div className="state-panel error-panel"><CircleHelp size={26} /><strong>We couldn&apos;t load the fixtures</strong><span>{error}</span><button className="retry-button" onClick={() => void loadFixtures()}><RefreshCw size={14} /> Try again</button></div>}
             {!loading && !error && fixtures.length === 0 && <div className="state-panel"><CalendarDays size={26} /><strong>No fixtures found for this date</strong><span>Try another date or choose a different competition.</span><button className="retry-button" onClick={() => setDate(shiftDate(date, 1))}>Next day <ChevronRight size={14} /></button></div>}
             {!loading && !error && fixtures.map((fixture) => <FixtureCard key={fixture.fixture.id} fixture={fixture} />)}
           </div>
