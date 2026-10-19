@@ -47,9 +47,20 @@ type TeamForm = {
   recentResults: string[];
 };
 
-async function getTeamForm(teamId: number, teamName: string, apiKey: string): Promise<{ form: TeamForm | null; issue?: string }> {
+async function getTeamForm(teamId: number, teamName: string, kickoffDate: string, apiKey: string): Promise<{ form: TeamForm | null; issue?: string }> {
   try {
-    const params = new URLSearchParams({ team: String(teamId), last: "10", timezone: process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Athens" });
+    const endDate = new Date(kickoffDate);
+    if (Number.isNaN(endDate.getTime())) return { form: null, issue: "The fixture kickoff date is invalid." };
+    endDate.setUTCHours(23, 59, 59, 999);
+    const startDate = new Date(endDate);
+    startDate.setUTCDate(startDate.getUTCDate() - 180);
+    const toDate = (date: Date) => date.toISOString().slice(0, 10);
+    const params = new URLSearchParams({
+      team: String(teamId),
+      from: toDate(startDate),
+      to: toDate(endDate),
+      timezone: process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Athens",
+    });
     const response = await fetch(`https://v3.football.api-sports.io/fixtures?${params.toString()}`, {
       headers: { "x-apisports-key": apiKey, accept: "application/json" },
       signal: AbortSignal.timeout(10000),
@@ -69,7 +80,7 @@ async function getTeamForm(teamId: number, teamName: string, apiKey: string): Pr
       ["FT", "AET", "PEN"].includes(item.fixture?.status?.short || "") &&
       typeof item.goals?.home === "number" && typeof item.goals?.away === "number" &&
       (item.teams?.home?.id === teamId || item.teams?.away?.id === teamId)
-    ).slice(0, 5);
+    ).sort((a, b) => (b.fixture?.date || "").localeCompare(a.fixture?.date || "")).slice(0, 5);
     if (!completed.length) {
       console.error("API-Football returned no completed recent fixtures", { teamId, results: payload.results ?? payload.response?.length ?? 0 });
       return { form: null, issue: `API-Football returned no completed recent fixtures for team ${teamId}` };
@@ -100,8 +111,8 @@ async function getRecentForm(fixture: NonNullable<InsightRequest["fixture"]>) {
   if (!apiKey) return { data: null, issue: "API_FOOTBALL_KEY is missing in the server environment." };
   if (!fixture.homeId || !fixture.awayId) return { data: null, issue: "The fixture response is missing one or both team IDs." };
   const [homeResult, awayResult] = await Promise.all([
-    getTeamForm(fixture.homeId, fixture.home || "Home team", apiKey),
-    getTeamForm(fixture.awayId, fixture.away || "Away team", apiKey),
+    getTeamForm(fixture.homeId, fixture.home || "Home team", fixture.date || "", apiKey),
+    getTeamForm(fixture.awayId, fixture.away || "Away team", fixture.date || "", apiKey),
   ]);
   const home = homeResult.form;
   const away = awayResult.form;
