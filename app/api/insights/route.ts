@@ -29,10 +29,10 @@ const allowedPicks = new Set(["HOME_WIN", "DRAW", "AWAY_WIN", "NO_PICK"]);
 const allowedConfidence = new Set(["HIGH", "MEDIUM", "LOW"]);
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "AI insights are not configured yet. Add OPENAI_API_KEY to Vercel Environment Variables, then redeploy." },
+      { error: "AI insights are not configured. Add GEMINI_API_KEY in Vercel Environment Variables, then redeploy." },
       { status: 503 },
     );
   }
@@ -56,12 +56,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Fixture details are missing or invalid." }, { status: 400 });
   }
 
-  const isFinished = ["FT", "AET", "PEN"].includes(fixture.status || "");
-  if (isFinished) {
+  if (["FT", "AET", "PEN"].includes(fixture.status || "")) {
     return NextResponse.json({ error: "Pre-match insights are unavailable for a completed match." }, { status: 400 });
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
   const prompt = [
     "You are BetMind AI, a cautious football match-insights assistant.",
     "The only facts provided are the two team names, competition, kickoff time, and fixture status. No recent form, injuries, odds, lineups, standings, or team statistics are provided.",
@@ -82,20 +81,32 @@ export async function POST(request: NextRequest) {
 
   let response: Response;
   try {
-    response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: "Return cautious, schema-conforming JSON. Never invent evidence." },
-          { role: "user", content: prompt },
-        ],
+        systemInstruction: {
+          parts: [{ text: "Return cautious, schema-conforming JSON. Never invent evidence." }],
+        },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              summary: { type: "STRING" },
+              pick: { type: "STRING", enum: ["HOME_WIN", "DRAW", "AWAY_WIN", "NO_PICK"] },
+              pickLabel: { type: "STRING" },
+              confidence: { type: "STRING", enum: ["HIGH", "MEDIUM", "LOW"] },
+              risk: { type: "INTEGER" },
+              reasoning: { type: "ARRAY", items: { type: "STRING" } },
+              limitations: { type: "STRING" },
+            },
+            required: ["summary", "pick", "pickLabel", "confidence", "risk", "reasoning", "limitations"],
+          },
+        },
       }),
       signal: AbortSignal.timeout(25000),
     });
@@ -104,18 +115,20 @@ export async function POST(request: NextRequest) {
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
-      return NextResponse.json({ error: "The AI provider rejected OPENAI_API_KEY. Check the Vercel environment variable." }, { status: 502 });
+    if (response.status === 400 || response.status === 403) {
+      return NextResponse.json({ error: "Gemini rejected the request or API key. Check GEMINI_API_KEY and the selected model in Google AI Studio." }, { status: 502 });
     }
     if (response.status === 429) {
-      return NextResponse.json({ error: "The AI provider rate limit or account quota was reached. Check your OpenAI account and try again later." }, { status: 429 });
+      return NextResponse.json({ error: "Gemini free-tier rate limit reached. Wait a little and try again; free quotas can vary by model and account." }, { status: 429 });
     }
     return NextResponse.json({ error: `AI provider request failed (HTTP ${response.status}).` }, { status: 502 });
   }
 
   try {
-    const payload = await response.json() as { choices?: { message?: { content?: string | null } }[] };
-    const content = payload.choices?.[0]?.message?.content;
+    const payload = await response.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const content = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
     if (!content) throw new Error("Missing model response");
     const parsed = JSON.parse(content) as Partial<Insight>;
     if (
