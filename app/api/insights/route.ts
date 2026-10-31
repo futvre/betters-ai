@@ -45,6 +45,90 @@ async function getEvidence(id: number) {
   }
 }
 
+async function pause(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function generateWithFallback(
+  key: string,
+  preferredModel: string,
+  prompt: string
+): Promise<{ response: Response | null; model: string; networkError?: string }> {
+  const fallbackModel =
+    preferredModel === "gemini-3.5-flash-lite"
+      ? "gemini-3.1-flash-lite"
+      : "gemini-3.5-flash-lite";
+  const models = [...new Set([preferredModel, fallbackModel])];
+  const requestBody = {
+    systemInstruction: {
+      parts: [{ text: "Return cautious, schema-conforming JSON. Never invent football evidence." }],
+    },
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          summary: { type: "STRING" },
+          pick: { type: "STRING", enum: ["HOME_WIN", "DRAW", "AWAY_WIN", "NO_PICK"] },
+          pickLabel: { type: "STRING" },
+          confidence: { type: "STRING", enum: ["HIGH", "MEDIUM", "LOW"] },
+          risk: { type: "INTEGER" },
+          reasoning: { type: "ARRAY", items: { type: "STRING" } },
+          limitations: { type: "STRING" },
+        },
+        required: ["summary", "pick", "pickLabel", "confidence", "risk", "reasoning", "limitations"],
+      },
+    },
+  };
+
+  let lastResponse: Response | null = null;
+  let lastModel = preferredModel;
+  let networkError = "";
+
+  for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
+    const model = models[modelIndex];
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      if (modelIndex > 0 || attempt > 0) {
+        await pause(modelIndex > 0 && attempt === 0 ? 900 : 1400);
+      }
+      try {
+        const response = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/" +
+            encodeURIComponent(model) + ":generateContent?key=" + encodeURIComponent(key),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody),
+            cache: "no-store",
+            signal: AbortSignal.timeout(12000),
+          }
+        );
+        lastResponse = response;
+        lastModel = model;
+        if (response.ok) return { response, model };
+
+        const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+        if (!retryable) {
+          if (response.status === 404 && modelIndex === 0) break;
+          return { response, model };
+        }
+        if (attempt === 1 && modelIndex === models.length - 1) {
+          return { response, model };
+        }
+      } catch (error) {
+        networkError = error instanceof Error ? error.message : "Network request failed";
+        lastResponse = null;
+        lastModel = model;
+        if (attempt === 1 && modelIndex === models.length - 1) {
+          return { response: null, model, networkError };
+        }
+      }
+    }
+  }
+  return { response: lastResponse, model: lastModel, networkError };
+}
+
 export async function POST(req: NextRequest) {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   const model = process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash-lite";
@@ -98,50 +182,56 @@ export async function POST(req: NextRequest) {
     }),
   ].join("\n");
 
-  let response: Response;
-  try {
-    response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) +
-      ":generateContent?key=" + encodeURIComponent(key),
-      {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "Return cautious, schema-conforming JSON. Never invent football evidence." }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                summary: { type: "STRING" },
-                pick: { type: "STRING", enum: ["HOME_WIN", "DRAW", "AWAY_WIN", "NO_PICK"] },
-                pickLabel: { type: "STRING" },
-                confidence: { type: "STRING", enum: ["HIGH", "MEDIUM", "LOW"] },
-                risk: { type: "INTEGER" },
-                reasoning: { type: "ARRAY", items: { type: "STRING" } },
-                limitations: { type: "STRING" },
-              },
-              required: ["summary", "pick", "pickLabel", "confidence", "risk", "reasoning", "limitations"],
-            },
-          },
-        }),
-        cache: "no-store", signal: AbortSignal.timeout(30000),
-      }
-    );
-  } catch {
-    return NextResponse.json({ error: "Could not reach Gemini. Check provider availability and try again.", code: "GEMINI_NETWORK_ERROR" }, { status: 502 });
+  const generated = await generateWithFallback(key, model, prompt);
+  const response = generated.response;
+  if (!response) {
+    console.error("Gemini network failure", {
+      model: generated.model,
+      message: generated.networkError || "Unknown network error",
+    });
+    return NextResponse.json({
+      error: "Could not reach Gemini after retrying the configured and fallback models.",
+      code: "GEMINI_NETWORK_ERROR",
+    }, { status: 502 });
   }
 
   if (!response.ok) {
     let message = "";
     try {
-      const data = await response.json() as { error?: { message?: string } };
-      message = data.error?.message || "";
-    } catch { /* HTTP status is sufficient. */ }
-    console.error("Gemini API error", { status: response.status, model, message: message.slice(0, 350) });
-    if (response.status === 404) return NextResponse.json({ error: "Gemini model not found: " + model + ". Check GEMINI_MODEL in Vercel.", code: "GEMINI_MODEL_NOT_FOUND" }, { status: 502 });
-    if (response.status === 429) return NextResponse.json({ error: "Gemini quota or rate limit reached. " + message.slice(0, 180), code: "GEMINI_RATE_LIMIT" }, { status: 429 });
-    return NextResponse.json({ error: "Gemini request failed (HTTP " + response.status + "). " + message.slice(0, 220), code: "GEMINI_PROVIDER_ERROR" }, { status: 502 });
+      const data = await response.clone().json() as {
+        error?: { message?: string; status?: string };
+      };
+      message = data.error?.message || data.error?.status || "";
+    } catch {
+      // Keep the HTTP status if the provider response is not JSON.
+    }
+    console.error("Gemini API error after retry/fallback", {
+      status: response.status,
+      model: generated.model,
+      message: message.slice(0, 350),
+    });
+    if (response.status === 404) {
+      return NextResponse.json({
+        error: "Gemini model not found: " + generated.model + ". Check GEMINI_MODEL in Vercel.",
+        code: "GEMINI_MODEL_NOT_FOUND",
+      }, { status: 502 });
+    }
+    if (response.status === 429) {
+      return NextResponse.json({
+        error: "Gemini quota or rate limit reached after trying the fallback model. " + message.slice(0, 180),
+        code: "GEMINI_RATE_LIMIT",
+      }, { status: 429 });
+    }
+    if (response.status === 503) {
+      return NextResponse.json({
+        error: "Gemini is temporarily overloaded on both the configured and fallback model. Please retry in a little while.",
+        code: "GEMINI_OVERLOADED",
+      }, { status: 503 });
+    }
+    return NextResponse.json({
+      error: "Gemini request failed (HTTP " + response.status + "). " + message.slice(0, 220),
+      code: "GEMINI_PROVIDER_ERROR",
+    }, { status: 502 });
   }
 
   try {
@@ -170,7 +260,7 @@ export async function POST(req: NextRequest) {
       mode: postMatch ? "POST_MATCH" as const : "PRE_MATCH" as const,
       actualScore: score,
     };
-    return NextResponse.json({ insight, evidenceSource: postMatch ? "final-score+gemini" : evidence ? "api-football+gemini" : "fixture-metadata+gemini" }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ insight, model: generated.model, evidenceSource: postMatch ? "final-score+gemini" : evidence ? "api-football+gemini" : "fixture-metadata+gemini" }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Gemini structured response invalid", { model, message: error instanceof Error ? error.message : "Unknown error" });
     return NextResponse.json({ error: "Gemini returned an invalid response. Please try again.", code: "GEMINI_INVALID_OUTPUT" }, { status: 502 });

@@ -20,6 +20,7 @@ type Saved = {
 type BatchResponse = {
   records?: Record<string, Saved>;
   checkedAt?: string; nextCheckAt?: string; quotaReached?: boolean;
+  partial?: boolean; message?: string; providerTotalPages?: number;
   dailyLimit?: number; error?: string;
 };
 type Props = { fixtures: Fixture[]; date: string; active: boolean };
@@ -99,6 +100,7 @@ export default function OddsAutoMonitor({fixtures,date,active}:Props) {
       nextDue.current=result.quotaReached?Number.POSITIVE_INFINITY:
         result.nextCheckAt?Date.parse(result.nextCheckAt):Date.now()+3*60*60*1000;
       if(result.quotaReached)setError("Το ημερήσιο όριο ασφαλείας του API-Football εξαντλήθηκε. Η σάρωση θα συνεχιστεί όταν μηδενιστεί.");
+      else if(result.partial)setError(result.message || "Έγινε μερική σάρωση λόγω ορίου σελίδων του δωρεάν API-Football.");
     }catch(e){
       setError(e instanceof Error?e.message:"Odds service unavailable.");
       nextDue.current=Date.now()+5*60*1000;

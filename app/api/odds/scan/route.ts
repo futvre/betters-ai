@@ -14,7 +14,7 @@ type Payload={response?:Entry[];paging?:{total?:number};errors?:Record<string,st
 type Quote={bookmakerId:string;bookmaker:string;home:number;draw:number;away:number;favourite:"HOME"|"AWAY"|null;updatedAt:string|null};
 type Previous={id:string;favourite_side:"HOME"|"AWAY"|null;home_odd:string;draw_odd:string;away_odd:string};
 
-const LIMIT=60, COOLDOWN=3*60*60*1000, MARKET="match_winner_1x2";
+const LIMIT=60, MAX_FREE_PAGES=3, COOLDOWN=3*60*60*1000, MARKET="match_winner_1x2";
 const norm=(s:string)=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
 function odd(values:OddValue[],labels:string[]){
  const matches=values.filter(v=>!v.suspended&&labels.includes(norm(v.value||"")));
@@ -91,18 +91,25 @@ export async function POST(req:NextRequest){
  const lock="betmind-odds-date:"+date;let locked=false;
  try{
   await client.query("SELECT pg_advisory_lock(hashtext($1))",[lock]);locked=true;
-  const previous=await client.query("SELECT last_checked_at,pages_processed FROM public.odds_scan_state WHERE scan_date=$1",[date]);
+  const previous=await client.query("SELECT last_checked_at,pages_processed,complete FROM public.odds_scan_state WHERE scan_date=$1",[date]);
   const scan=previous.rows[0];
   if(scan?.last_checked_at&&Date.now()-new Date(scan.last_checked_at).getTime()<COOLDOWN){
    const records=await loadRecords(client,matches);
    const checkedAt=new Date(scan.last_checked_at).toISOString();
-   return NextResponse.json({status:"ok",cached:true,records,fixturesProcessed:matches.length,pagesProcessed:scan.pages_processed||0,checkedAt,nextCheckAt:new Date(Date.parse(checkedAt)+COOLDOWN).toISOString()},{headers:{"Cache-Control":"no-store"}});
+   return NextResponse.json({
+    status:"ok",cached:true,records,fixturesProcessed:matches.length,
+    pagesProcessed:scan.pages_processed||0,partial:scan.complete===false,
+    checkedAt,nextCheckAt:new Date(Date.parse(checkedAt)+COOLDOWN).toISOString(),
+    message:scan.complete===false
+      ?"This date scan is partial: the free plan allows a maximum page value of 3."
+      :"Using the latest date-level odds scan.",
+   },{headers:{"Cache-Control":"no-store"}});
   }
 
   const byId=new Map(matches.map(m=>[m.fixtureId,m]));
   const quotesById=new Map<number,Quote[]>();
-  let totalPages=1,pages=0,quotaReached=false,complete=true;
-  for(let page=1;page<=totalPages&&page<=40;page++){
+  let totalPages=1,providerTotalPages=1,pages=0,quotaReached=false,complete=true;
+  for(let page=1;page<=totalPages&&page<=MAX_FREE_PAGES;page++){
    if(!await reserve(client)){quotaReached=true;complete=false;break;}
    const url=new URL(base+"/odds");
    url.searchParams.set("date",date);
@@ -117,7 +124,9 @@ export async function POST(req:NextRequest){
    const payload=await response.json() as Payload;
    if(payload.errors&&Object.keys(payload.errors).length)return NextResponse.json({error:"API-Football: "+Object.values(payload.errors).flat().join(" ").slice(0,220)},{status:502});
    pages++;
-   totalPages=Math.max(1,Number(payload.paging?.total||1));
+   providerTotalPages=Math.max(1,Number(payload.paging?.total||1));
+   totalPages=Math.min(MAX_FREE_PAGES,providerTotalPages);
+   if(providerTotalPages>MAX_FREE_PAGES)complete=false;
    const entries=payload.response||[];
    for(const entry of entries){
     const id=Number(entry.fixture?.id),match=byId.get(id);
@@ -165,9 +174,13 @@ export async function POST(req:NextRequest){
   const records=await loadRecords(client,matches);
   return NextResponse.json({
    status:"ok",cached:false,records,fixturesProcessed:matches.length,pagesProcessed:pages,
-   quotaReached,dailyLimit:LIMIT,checkedAt:checkedAt.toISOString(),
+   providerTotalPages,partial:!complete,quotaReached,dailyLimit:LIMIT,checkedAt:checkedAt.toISOString(),
    nextCheckAt:new Date(checkedAt.getTime()+COOLDOWN).toISOString(),
-   message:quotaReached?"Daily API-Football odds quota reached; the scan is partial.":"Date-level odds scan completed. Availability varies by fixture and league.",
+   message:quotaReached
+    ?"Daily API-Football odds quota reached; the scan is partial."
+    :!complete
+      ?"Only the first 3 pages were checked because the API-Football free plan allows a maximum page value of 3."
+      :"Date-level odds scan completed. Availability varies by fixture and league.",
   },{headers:{"Cache-Control":"no-store"}});
  }catch(error){
   console.error("Automatic odds scan failed",{date,message:error instanceof Error?error.message:"Unknown error"});
