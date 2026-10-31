@@ -432,3 +432,200 @@
     justify-content: center;
   }
 }
+
+
+/* =========================================
+   BETMIND AI - ODDS WATCH
+========================================= */
+
+.odds-watch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin: 2px 0 12px;
+}
+
+.odds-watch-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.odds-watch-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid #3d4d68;
+  border-radius: 6px;
+  background: #152236;
+  color: #c2d2e8;
+  font-size: 10px;
+}
+
+.odds-watch-button:hover {
+  border-color: #82a46c;
+  color: #fff;
+}
+
+.odds-watch-button.odds-watch-active {
+  border-color: #476a45;
+  background: #203426;
+  color: #c1f5a6;
+}
+
+.odds-watch-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #8fa28c;
+  font: 9px var(--mono);
+}
+
+.odds-watch-live .status-led {
+  width: 5px;
+  height: 5px;
+}
+
+.odds-watch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #2a3c4e;
+  border-radius: 8px;
+  background: #0b1421;
+}
+
+.odds-watch-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a3f76a;
+}
+
+.odds-watch-panel-title strong {
+  color: #aebfd3;
+  font: 9px var(--mono);
+  letter-spacing: .6px;
+}
+
+.odds-near-kickoff {
+  margin-left: auto;
+  padding: 4px 6px;
+  border: 1px solid #6a5337;
+  border-radius: 4px;
+  background: #30261a;
+  color: #f1c27f;
+  font: 8px var(--mono);
+}
+
+.odds-watch-quotes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.odds-watch-quote {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  gap: 12px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #1f3044;
+  border-radius: 6px;
+  background: #101b2b;
+}
+
+.odds-watch-bookmaker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.odds-watch-bookmaker strong {
+  color: #e0e9f5;
+  font-size: 10px;
+}
+
+.odds-watch-bookmaker span {
+  color: #9ab18c;
+  font-size: 9px;
+}
+
+.odds-watch-prices {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #7e90a8;
+  font: 9px var(--mono);
+}
+
+.odds-watch-prices span {
+  display: flex;
+  gap: 4px;
+}
+
+.odds-watch-prices strong {
+  color: #e2edf9;
+}
+
+.odds-watch-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid #344533;
+}
+
+.odds-watch-alerts > strong {
+  color: #c7f2a8;
+  font: 9px var(--mono);
+  letter-spacing: .6px;
+}
+
+.odds-watch-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: #d5dfeb;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.odds-watch-alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #a3f76a;
+}
+
+.odds-watch-muted {
+  color: #75869d;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.odds-watch-error {
+  color: #efaa9c;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .odds-watch-quote {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .odds-watch-prices {
+    justify-content: space-between;
+  }
+
+  .odds-watch-live {
+    font-size: 8px;
+  }
+}

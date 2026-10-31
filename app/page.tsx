@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { LEAGUES } from "@/lib/leagues";
+import OddsMonitor from "@/components/OddsMonitor";
 import type { Fixture, FixturesResponse } from "@/types/fixture";
 
 type MatchFilter = "all" | "live" | "upcoming" | "finished";
@@ -508,6 +509,13 @@ function FixtureCard({
           </button>
         </div>
       </div>
+
+      <OddsMonitor
+        fixtureId={fixture.fixture.id}
+        homeName={fixture.teams.home.name}
+        awayName={fixture.teams.away.name}
+        kickoff={fixture.fixture.date}
+      />
 
       {expanded && (
         <MatchDetails

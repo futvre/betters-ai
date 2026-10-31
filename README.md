@@ -70,3 +70,15 @@ The dashboard can generate a cautious, structured match insight when a user clic
 - `GEMINI_MODEL`: optional model override; defaults to `gemini-3.1-flash-lite`.
 
 Keep the key server-side; do not prefix it with `NEXT_PUBLIC_` or commit a real key. Gemini offers a free tier with model-specific usage limits; quotas can change and are not unlimited. See the [official Gemini API pricing page](https://ai.google.dev/gemini-api/docs/pricing). The initial AI version receives fixture metadata only. It does **not** have team form, injury, lineup, standings or odds data, so it must disclose those limitations and can return `NO_PICK`.
+
+
+## Odds monitoring
+
+- 1X2 favourite changes are compared within the same bookmaker and fixture.
+- Pre-match quotes use API-Football /odds; provider refresh is approximately every 3 hours and the provider retains a limited history.
+- Near-kickoff quotes use API-Football /odds/live. The monitor stops at kickoff and does not compare in-play prices.
+- Snapshots and favourite-change alerts are persisted in Neon. Identical odds are not duplicated.
+- A global safety limit caps odds-provider requests at 60 per UTC day, with an additional per-fixture cooldown.
+- Browser notifications require the user to enable monitoring for a match and grant notification permission.
+- Monitoring runs only while the BetMind page is open. It is not a background push service when the browser is closed.
+- The first price captured by BetMind is a first observed price, not necessarily the bookmaker's true opening price.
