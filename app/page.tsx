@@ -20,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { LEAGUES } from "@/lib/leagues";
-import OddsMonitor from "@/components/OddsMonitor";
+import OddsAutoMonitor from "@/components/OddsAutoMonitor";
 import type { Fixture, FixturesResponse } from "@/types/fixture";
 
 type MatchFilter = "all" | "live" | "upcoming" | "finished";
@@ -33,6 +33,8 @@ type MatchInsight = {
   risk: 1 | 2 | 3 | 4 | 5;
   reasoning: string[];
   limitations: string;
+  mode?: "PRE_MATCH" | "POST_MATCH";
+  actualScore?: string;
 };
 
 type MatchEvent = {
@@ -510,13 +512,6 @@ function FixtureCard({
         </div>
       </div>
 
-      <OddsMonitor
-        fixtureId={fixture.fixture.id}
-        homeName={fixture.teams.home.name}
-        awayName={fixture.teams.away.name}
-        kickoff={fixture.fixture.date}
-      />
-
       {expanded && (
         <MatchDetails
           fixtureId={fixture.fixture.id}
@@ -535,12 +530,12 @@ function FixtureCard({
         <section className="insight-panel">
           <div className="insight-topline">
             <span className="insight-label">
-              <Sparkles size={13} /> BETMIND AI ANALYSIS
+              <Sparkles size={13} /> {insight.mode === "POST_MATCH" ? "POST-MATCH REVIEW" : "BETMIND AI ANALYSIS"}
             </span>
             <span
               className={`confidence confidence-${insight.confidence.toLowerCase()}`}
             >
-              {insight.confidence} CONFIDENCE
+              {insight.mode === "POST_MATCH" ? "FINAL RESULT" : `${insight.confidence} CONFIDENCE`}
             </span>
           </div>
 
@@ -548,12 +543,12 @@ function FixtureCard({
 
           <div className="insight-metrics">
             <div>
-              <small>PROVISIONAL PICK</small>
+              <small>{insight.mode === "POST_MATCH" ? "ACTUAL RESULT" : "PROVISIONAL PICK"}</small>
               <strong>{insight.pickLabel}</strong>
             </div>
             <div>
-              <small>RISK SCORE</small>
-              <strong>{insight.risk}/5</strong>
+              <small>{insight.mode === "POST_MATCH" ? "FINAL SCORE" : "RISK SCORE"}</small>
+              <strong>{insight.mode === "POST_MATCH" ? insight.actualScore : `${insight.risk}/5`}</strong>
             </div>
           </div>
 
@@ -827,44 +822,7 @@ export default function Home() {
             </div>
           </div>
 
-          <section className="hero-banner">
-            <div className="hero-grid" />
-            <div className="hero-content">
-              <div className="hero-chip">
-                <span className="hero-chip-dot" /> YOUR DAILY MATCH INTELLIGENCE
-              </div>
-              <h2>
-                Football is a game.
-                <br />
-                <span>Data tells the story.</span>
-              </h2>
-              <p>
-                Fixtures first. Evidence always. Every insight should be
-                measurable.
-              </p>
-              <div className="hero-points">
-                <span>
-                  <span className="point-check">✓</span> Real fixtures
-                </span>
-                <span>
-                  <span className="point-check">✓</span> Transparent tracking
-                </span>
-                <span>
-                  <span className="point-check">✓</span> No guaranteed outcomes
-                </span>
-              </div>
-            </div>
 
-            <div className="hero-orb">
-              <div className="orb-ring ring-one" />
-              <div className="orb-ring ring-two" />
-              <div className="orb-core">
-                <Activity size={35} />
-              </div>
-              <span className="orb-label orb-label-top">MATCH DATA</span>
-              <span className="orb-label orb-label-bottom">SIGNAL / NOISE</span>
-            </div>
-          </section>
 
           <div className="matches-heading">
             <div>
@@ -999,6 +957,8 @@ export default function Home() {
               : "Waiting for match data..."}
           </div>
 
+          <OddsAutoMonitor fixtures={fixtures} date={date} active={!loading && !error} />
+
           <div className="fixture-list">
             {loading && (
               <div className="state-panel">
@@ -1068,20 +1028,7 @@ export default function Home() {
               ))}
           </div>
 
-          <section id="coming-soon" className="roadmap-card">
-            <div className="roadmap-icon">
-              <Sparkles size={18} />
-            </div>
-            <div className="roadmap-copy">
-              <strong>Match Centre · Phase 1</strong>
-              <span>
-                Status filters, team and league search, plus expandable match
-                details. Events, statistics and lineups depend on API-Football
-                coverage.
-              </span>
-            </div>
-            <span className="roadmap-badge">PHASE 1</span>
-          </section>
+
 
           <footer className="footer">
             <span>© {new Date().getFullYear()} BetMind AI</span>

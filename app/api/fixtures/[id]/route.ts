@@ -45,7 +45,7 @@ export async function GET(
 
   try {
     const url = new URL(`${baseUrl}/fixtures`);
-    url.searchParams.set("ids", String(fixtureId));
+    url.searchParams.set("id", String(fixtureId));
     url.searchParams.set(
       "timezone",
       process.env.NEXT_PUBLIC_APP_TIMEZONE || "Europe/Athens"

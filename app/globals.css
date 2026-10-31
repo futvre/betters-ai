@@ -629,3 +629,41 @@
     font-size: 8px;
   }
 }
+
+
+/* Compact fixture rows and automatic odds dashboard */
+.fixture-list{gap:7px}
+.fixture-card{display:grid;grid-template-columns:minmax(145px,1fr) minmax(280px,2.3fr) minmax(155px,auto);align-items:center;gap:10px 16px;min-height:72px;padding:0 13px;border-radius:8px}
+.fixture-card:hover{background:#111c2b}
+.fixture-league{min-width:0;height:auto;flex-wrap:wrap;align-content:center;gap:5px 7px;border:0;line-height:1.35}
+.fixture-league>span:nth-child(2){font-weight:600;color:#cbd7e7}
+.league-country{font-size:9px}.match-state{font-size:9px}
+.fixture-teams{min-width:0;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);gap:8px;padding:0}
+.team-side{gap:7px}.team-logo,.team-fallback{width:24px;height:24px}.team-name{font-size:11px}.scoreline{gap:6px;font-size:17px}
+.fixture-foot{min-width:0;justify-content:flex-end;border:0;padding:0}.fixture-foot>span{display:none}
+.fixture-actions{gap:5px}.fixture-actions .insight-button{padding:6px 8px;font-size:9px}
+.insight-panel,.match-details{grid-column:1/-1}.insight-panel{margin:0 0 10px}
+.auto-odds-monitor{margin:10px 0 16px;padding:13px 15px;background:linear-gradient(120deg,#101c2b,#101a27);border:1px solid #2a3a4f;border-radius:10px}
+.auto-odds-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.auto-odds-title{display:flex;align-items:center;gap:10px;min-width:0}
+.auto-odds-icon{width:31px;height:31px;display:grid;place-items:center;border-radius:8px;background:#1c302a;color:var(--green);flex-shrink:0}
+.auto-odds-title>div{display:flex;flex-direction:column;gap:3px}
+.auto-odds-title strong{font-size:12px;color:#edf3fc}.auto-odds-title span{font-size:10px;color:#8594aa}
+.auto-odds-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.auto-odds-notify{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #2b3b50;border-radius:6px;background:#172337;color:#b5c3d7;font-size:9px}
+.auto-odds-status{display:inline-flex;align-items:center;gap:7px;padding:6px 8px;border:1px solid #2d4c3b;border-radius:6px;color:#b9f5a2;font:9px var(--mono);white-space:nowrap}
+.auto-odds-paused{border-color:#674c32;color:#f4c78f}
+.auto-odds-paused .status-led{background:#f0b35d;box-shadow:0 0 8px #f0b35d70}
+.auto-odds-metrics{display:flex;align-items:center;flex-wrap:wrap;gap:8px 17px;margin-top:11px;padding-top:10px;border-top:1px solid #223044;color:#8190a7;font-size:10px}
+.auto-odds-metrics strong{color:#e8eff8;font:600 11px var(--mono)}.auto-odds-note{margin-left:auto;color:#697a92}
+.auto-odds-warning{display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:8px 9px;border:1px solid #5c4930;border-radius:7px;background:#2b241a;color:#f0c890;font-size:10px;line-height:1.5}
+.auto-odds-alerts,.auto-odds-quotes{margin-top:11px}
+.auto-odds-section-title{display:flex;align-items:center;gap:7px;margin-bottom:7px;color:#8ea0b8;font:9px var(--mono);letter-spacing:.8px}
+.auto-odds-alert{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #202d3f;font-size:10px}
+.auto-odds-alert strong{color:var(--green)}.auto-odds-alert span{color:#a0aec1}.auto-odds-alert small{margin-left:auto;color:#75859b;font:9px var(--mono)}
+.auto-odds-quote{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #202d3f;font-size:10px}
+.auto-odds-match{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c9d5e5}.auto-odds-bookmaker{color:#7f90a8}
+.auto-odds-quote strong{color:#e7f1ff;font:500 10px var(--mono);white-space:nowrap}
+.auto-odds-footnote,.auto-odds-empty{margin-top:9px;color:#718198;font-size:9px;line-height:1.5}
+@media(max-width:900px){.fixture-card{grid-template-columns:minmax(105px,.75fr) minmax(230px,2fr);gap:8px 12px;padding:9px 11px}.fixture-foot{grid-column:1/-1;justify-content:flex-end}.fixture-actions{width:100%;justify-content:flex-end}}
+@media(max-width:600px){.fixture-card{grid-template-columns:1fr;gap:7px;padding:9px 11px}.fixture-league{font-size:9px}.fixture-teams{grid-template-columns:minmax(0,1fr) 45px minmax(0,1fr)}.fixture-foot{grid-column:auto}.fixture-actions{justify-content:flex-start}.auto-odds-heading{align-items:flex-start;flex-direction:column}.auto-odds-controls{justify-content:flex-start}.auto-odds-note{margin-left:0}.auto-odds-quote{grid-template-columns:minmax(0,1fr) auto}.auto-odds-bookmaker{display:none}.auto-odds-alert{align-items:flex-start;flex-wrap:wrap}.auto-odds-alert small{margin-left:auto}}

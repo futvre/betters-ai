@@ -64,10 +64,10 @@ Football outcomes are uncertain. Any future predictions are probabilistic estima
 
 ## Optional AI match insights
 
-The dashboard can generate a cautious, structured match insight when a user clicks **AI insight** on a fixture card. For a free-tier setup, create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey), then configure these server-side environment variables in Vercel (Project → Settings → Environment Variables) and redeploy:
+The dashboard can generate a cautious pre-match insight for upcoming fixtures or a post-match review based on the final score for completed fixtures. For a free-tier setup, create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey), then configure these server-side environment variables in Vercel (Project → Settings → Environment Variables) and redeploy:
 
 - `GEMINI_API_KEY`: your key from Google AI Studio.
-- `GEMINI_MODEL`: optional model override; defaults to `gemini-3.1-flash-lite`.
+- `GEMINI_MODEL`: optional model override; defaults to `gemini-3.5-flash-lite`.
 
 Keep the key server-side; do not prefix it with `NEXT_PUBLIC_` or commit a real key. Gemini offers a free tier with model-specific usage limits; quotas can change and are not unlimited. See the [official Gemini API pricing page](https://ai.google.dev/gemini-api/docs/pricing). The initial AI version receives fixture metadata only. It does **not** have team form, injury, lineup, standings or odds data, so it must disclose those limitations and can return `NO_PICK`.
 
@@ -78,7 +78,9 @@ Keep the key server-side; do not prefix it with `NEXT_PUBLIC_` or commit a real 
 - Pre-match quotes use API-Football /odds; provider refresh is approximately every 3 hours and the provider retains a limited history.
 - Near-kickoff quotes use API-Football /odds/live. The monitor stops at kickoff and does not compare in-play prices.
 - Snapshots and favourite-change alerts are persisted in Neon. Identical odds are not duplicated.
-- A global safety limit caps odds-provider requests at 60 per UTC day, with an additional per-fixture cooldown.
-- Browser notifications require the user to enable monitoring for a match and grant notification permission.
-- Monitoring runs only while the BetMind page is open. It is not a background push service when the browser is closed.
+- Every upcoming fixture for the selected date is monitored automatically; no per-match Watch button is required.
+- Pre-match odds are fetched by date through paginated batches (10 fixtures per page), with a safety cap of 60 odds-provider requests per UTC day.
+- A near-kickoff capture is attempted automatically in the provider's 15-minute pre-start window.
+- Browser notifications can be enabled once from the automatic-monitor panel.
+- Monitoring runs while the BetMind page is open. It is not a background push service when the browser is closed.
 - The first price captured by BetMind is a first observed price, not necessarily the bookmaker's true opening price.

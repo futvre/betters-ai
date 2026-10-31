@@ -12,7 +12,7 @@ export async function GET() {
       "SELECT NOW() AS checked_at, current_database() AS database_name, " +
         "(SELECT COUNT(*)::int FROM information_schema.tables " +
         "WHERE table_schema = 'public' AND table_name IN (" +
-        "'odds_snapshots','odds_alerts','odds_poll_state','odds_provider_usage'" +
+        "'odds_snapshots','odds_alerts','odds_poll_state','odds_provider_usage','odds_scan_state'" +
         ")) AS odds_tables_ready"
     );
 
@@ -26,7 +26,7 @@ export async function GET() {
       status: "connected",
       database: row.database_name,
       checkedAt: row.checked_at,
-      oddsStorage: row.odds_tables_ready === 4 ? "ready" : "incomplete",
+      oddsStorage: row.odds_tables_ready === 5 ? "ready" : "incomplete",
       oddsTablesReady: row.odds_tables_ready,
     });
   } catch (error) {
