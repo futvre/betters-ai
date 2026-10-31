@@ -1013,7 +1013,7 @@ export default function Home() {
             {!loading && error && (
               <div className="state-panel error-panel">
                 <CircleHelp size={26} />
-                <strong>We couldn't load the fixtures</strong>
+                <strong>We couldn&apos;t load the fixtures</strong>
                 <span>{error}</span>
                 <button
                   className="retry-button"
